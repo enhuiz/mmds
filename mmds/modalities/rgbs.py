@@ -25,7 +25,7 @@ class RgbsModality(TimeSeriesModality):
 
     transform: Callable = lambda x: x
 
-    def fetch(self, *, info={}):
+    def load(self, *, info={}):
         paths = self._slice(self.paths, info.get("t0", None), info.get("t1", None))
         frames = list(map(self.transform, map(_load_pil, paths)))
         return frames
