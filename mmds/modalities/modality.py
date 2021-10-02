@@ -2,7 +2,6 @@ import attr
 from typing import Optional
 from functools import cached_property
 from pathlib import Path
-from multiprocessing.managers import SyncManager
 
 
 @attr.define

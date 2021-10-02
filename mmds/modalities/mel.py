@@ -9,7 +9,6 @@ from .traits import CalculableModalityTrait
 @attr.define
 class MelModality(TimeSeriesModality, CalculableModalityTrait):
     mel_fn: LogMelSpectrogram
-    persistent: bool = True
 
     def calculate(self, wav):
         with torch.no_grad():

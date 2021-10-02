@@ -14,7 +14,6 @@ class F0Modality(TimeSeriesModality, CalculableModalityTrait):
     f0_min: float = 80
     f0_max: float = 880
     harmo_thresh: float = 0.25
-    persistent: bool = True
 
     @property
     def kwargs(self):
