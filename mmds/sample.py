@@ -39,8 +39,5 @@ class MultimodalSample:
     def get_modality_by_name(self, name):
         return next(modality for modality in self.modalities if modality.name == name)
 
-    def get_modalities_by_type(self, type):
-        return [modality for modality in self.modalities if isinstance(modality, type)]
-
     def generate_info(self) -> dict:
         return {}
