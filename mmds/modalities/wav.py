@@ -1,0 +1,39 @@
+import attr
+import librosa
+import numpy as np
+
+from .ts import TimeSeriesModality
+
+
+@attr.define
+class WavModality(TimeSeriesModality):
+    cache: bool = False
+    normalize: bool = True
+
+    def preload(self):
+        """
+        Returns:
+            wav: (t c)
+        """
+        wav, _ = librosa.load(self.path, sr=self.sample_rate)
+
+        # put t instead of c at first for easier padding and slicing
+        # which is also consistent with rgbs
+        if wav.ndim == 1:
+            wav = wav[:, None]
+        else:
+            wav = wav.transpose(0, 1)
+
+        wav = wav.astype(np.float32)
+
+        if self.normalize:
+            wav = wav / np.abs(wav).max()
+
+        self.wav = wav
+
+    def load(self, info={}):
+        return self._slice(self.wav, info.get("t0", None), info.get("t1", None))
+
+    @property
+    def duration(self):
+        return len(self.wav) / self.sample_rate
