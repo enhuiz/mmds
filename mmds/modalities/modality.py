@@ -3,7 +3,6 @@ from typing import Optional
 from functools import cached_property
 from pathlib import Path
 from multiprocessing.managers import SyncManager
-from functools import partial
 
 
 @attr.define
@@ -13,22 +12,13 @@ class Modality:
         name: the name of the modality.
         root: the data root of this modality.
         suffix: the suffix of the data, e.g. .mp4 or /*.jpg, yielding path: {root}/{id}.mp4 or paths: {root}/{id}/*.jpg.
-        manager: a multiprocessing manager if cached modality should be shared across different processes.
-        persistent: if the modality is persistent, after being loaded, it will always be in the memory.
+        memory: a dict for caching which may be managed by a proxy process.
     """
 
     name: str
     root: Path
     suffix: str
-    manager: Optional[SyncManager] = attr.field(kw_only=True, default=None)
-    persistent: bool = attr.field(kw_only=True, default=False)
-
-    @cached_property
-    def cached(self):
-        if self.manager is None:
-            return {}
-        else:
-            return self.manager.dict()
+    memory: Optional[dict] = attr.field(kw_only=True, default=None)
 
     @property
     def sample(self):
@@ -41,10 +31,6 @@ class Modality:
     def register(self, sample):
         self._sample = sample
 
-    @classmethod
-    def partial(cls, *args, **kwargs):
-        return partial(cls, *args, **kwargs)
-
     @cached_property
     def path(self) -> Path:
         assert "*" not in self.suffix
@@ -56,11 +42,17 @@ class Modality:
         paths = (self.root / self.sample.id).glob(self.suffix)
         return sorted(paths)
 
+    @property
+    def preloaded(self):
+        return self._preloaded
+
     def preload(self):
-        """
-        Preload data into cache (optional).
-        """
-        pass
+        if self.memory is not None and self._cache_key in self.memory:
+            self._preloaded = self.memory[self._cache_key]
+        else:
+            self._preloaded = self._preload_impl()
+            if self.memory is not None:
+                self.memory[self._cache_key] = self.preloaded
 
     def load(self, *, info: dict = {}):
         """
@@ -68,9 +60,18 @@ class Modality:
         """
         raise NotImplementedError
 
-    def empty_cache(self):
-        if not self.persistent and self.sample.id in self.cached:
-            del self.cached[self.sample.id]
+    def depreload(self):
+        del self._preloaded
+
+    @property
+    def _cache_key(self):
+        return (self.sample.id, self.name)
+
+    def _preload_impl(self):
+        """
+        Preload data into memory (optional).
+        """
+        pass
 
 
 if __name__ == "__main__":

@@ -32,7 +32,7 @@ class MultimodalSample:
         data["info"] = info
 
         for modality in self.modalities:
-            modality.empty_cache()
+            modality.depreload()
 
         return data
 
