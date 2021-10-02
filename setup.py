@@ -33,7 +33,7 @@ with open("README.md", "r") as f:
 setup(
     name="mmds",
     python_requires=">=3.9.0",
-    version=write_version("1.0.10", True),
+    version=write_version("0.0.1", True),
     description="MMDS: A general-purpose multimodal dataset wrapper.",
     author="enhuiz",
     author_email="niuzhe.nz@outlook.com",
