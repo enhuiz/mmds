@@ -23,7 +23,6 @@ def _load_pil(path):
 class RgbsModality(TimeSeriesModality):
     """A rgb sequence modality for video."""
 
-    cache: bool = False
     transform: Callable = lambda x: x
 
     def fetch(self, *, info={}):

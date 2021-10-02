@@ -7,7 +7,6 @@ from .ts import TimeSeriesModality
 
 @attr.define
 class WavModality(TimeSeriesModality):
-    cache: bool = False
     normalize: bool = True
 
     def preload(self):
