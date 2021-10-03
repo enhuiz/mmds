@@ -6,7 +6,7 @@ from typing import Optional, Any
 from ..sample import MultimodalSample
 
 
-@attr.define(slots=True)
+@attr.define
 class Modality:
     """
     Args:

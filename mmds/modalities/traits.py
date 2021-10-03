@@ -3,8 +3,6 @@ import numpy as np
 from typing import Optional
 from pathlib import Path
 
-from ..sample import MultimodalSample
-
 
 @attr.define(slots=False)
 class CalculableModalityTrait:
