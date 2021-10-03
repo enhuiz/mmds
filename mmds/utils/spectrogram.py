@@ -6,7 +6,7 @@ try:
     from torchaudio.transforms import MelSpectrogram as _MelSpectrogramBase
 except:
     raise ImportError(
-        "To use mel spectrogram feature, PyTorch and Torchaudio is required. "
+        "To use the mel spectrogram feature, PyTorch and Torchaudio is required. "
         "Install it with: pip install torch torchaudio"
     )
 

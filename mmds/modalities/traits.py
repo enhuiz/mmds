@@ -3,13 +3,15 @@ import numpy as np
 from typing import Optional
 from pathlib import Path
 
+from .modality import Modality
+
 
 @attr.define(slots=False)
 class CalculableModalityTrait:
     base_modality_name: Optional[str] = attr.field(default=None, kw_only=True)
 
     @property
-    def base_modality(self):
+    def base_modality(self) -> Modality:
         if self.base_modality_name is None:
             raise ValueError(f"Base modality is required to calculate {self.name}.")
         return self.sample.get_modality_by_name(self.base_modality_name)

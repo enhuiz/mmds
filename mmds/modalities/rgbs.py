@@ -28,6 +28,7 @@ class RgbsModality(TimeSeriesModality):
     """A rgb sequence modality for video."""
 
     transform: Callable
+    aggragate: Callable
 
     @property
     def duration(self):
@@ -36,7 +37,7 @@ class RgbsModality(TimeSeriesModality):
     def fetch(self, *, info={}):
         paths = self._slice(self.paths, info.get("t0", None), info.get("t1", None))
         frames = list(map(self.transform, map(_load_pil, paths)))
-        return frames
+        return self.aggragate(frames)
 
     @staticmethod
     def _pad_fn(x, n):

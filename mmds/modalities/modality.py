@@ -68,9 +68,9 @@ class Modality:
 
     def fetch(self, info={}):
         """
-        Fetch data given loaded data (required).
+        Fetch data given loaded data.
         """
-        raise NotImplementedError
+        return self.loaded
 
     def load_and_fetch(self, info={}):
         self.load()

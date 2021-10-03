@@ -23,7 +23,13 @@ pip install mmds --pre
 
 import timeit
 from mmds import MultimodalDataset, MultimodalSample
-from mmds.modalities import RgbsModality, WavModality, MelModality, F0Modality
+from mmds.modalities import (
+    RgbsModality,
+    WavModality,
+    MelModality,
+    F0Modality,
+    Ge2eModality,
+)
 from mmds.utils.spectrogram import LogMelSpectrogram
 from pathlib import Path
 from multiprocessing import Manager
@@ -32,11 +38,12 @@ from multiprocessing import Manager
 try:
     import youtube_dl
     import ffmpeg
+    import torch
     from torchvision import transforms
 except:
     raise ImportError(
-        "This demo requires youtube_dl, ffmpeg-python and torchvision, "
-        "install them now: pip install youtube_dl ffmpeg-python torchvision"
+        "This demo requires youtube_dl, ffmpeg-python and torch torchvision, "
+        "install them now: pip install youtube_dl ffmpeg-python torch torchvision"
     )
 
 
@@ -109,6 +116,7 @@ def main():
                         transforms.Normalize(0.5, 1),
                     ],
                 ),
+                aggragate=torch.stack,
                 cache=manager.dict(),
             ),
             WavModality.create_factory(
@@ -134,6 +142,14 @@ def main():
                 base_modality_name="wav",
                 cache=manager.dict(),
             ),
+            Ge2eModality.create_factory(
+                name="ge2e",
+                root="data",
+                suffix=".ge2e.npz",
+                sample_rate=16_000,
+                base_modality_name="wav",
+                cache=manager.dict(),
+            ),
         ],
     )
 
@@ -143,7 +159,13 @@ def main():
     # second load
     print(timeit.timeit(lambda: dataset[0], number=1))
 
-    print(dataset[0])
+    print(dataset[0]["info"])
+
+    for key, value in dataset[0].items():
+        try:
+            print(key, value.shape, type(value))
+        except:
+            pass
 
 
 if __name__ == "__main__":
