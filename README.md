@@ -4,8 +4,10 @@
 
 ## Installation
 
+### Latest
+
 ```
-pip install git+https://github.com/enhuiz/mmds@main
+pip install mmds --pre
 ```
 
 ## Example Usage
