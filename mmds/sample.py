@@ -1,38 +1,46 @@
 import attr
-from collections import Counter
-
-from .modalities.modality import Modality
+from functools import partial
 
 
 @attr.define
 class MultimodalSample:
     id: str
-    modalities: list[Modality] = attr.field(factory=list)
+    modalities: list = attr.field(init=False, factory=list, repr=False)
 
-    def __attr_post_init__(self):
-        counter = Counter(map(lambda m: m.name, self.modalities))
-
-        duplications = [key for key, value in counter.items() if value > 1]
-        if duplications:
+    def add_modality(self, factory: partial):
+        modality = factory(sample=self)
+        if modality.name in map(lambda m: m.name, self.modalities):
             raise ValueError(
                 "Modality should have unique name, "
-                f"but got multiple: {duplications}."
+                f"but got more than 1: {modality.name}."
             )
+        self.modalities.append(modality)
 
+    def load(self):
         for modality in self.modalities:
-            modality.register(self)
-
-    def fetch(self):
-        for modality in self.modalities:
-            modality.preload()
+            try:
+                modality.load()
+            except Exception as e:
+                raise RuntimeError(f"Load {modality} failed.") from e
 
         info = self.generate_info()
 
-        data = {modality.name: modality.load(info=info) for modality in self.modalities}
+        data = dict(info=info)
+
+        for modality in self.modalities:
+            try:
+                data[modality.name] = modality.fetch(info=info)
+            except Exception as e:
+                raise RuntimeError(f"Fetch {modality} failed.") from e
+
+        data = {
+            modality.name: modality.fetch(info=info) for modality in self.modalities
+        }
+
         data["info"] = info
 
         for modality in self.modalities:
-            modality.depreload()
+            modality.unload()
 
         return data
 

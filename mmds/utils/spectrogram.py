@@ -1,7 +1,14 @@
-import torch
 import numpy as np
-from torchaudio.transforms import MelSpectrogram as _MelSpectrogramBase
 from dataclasses import dataclass
+
+try:
+    import torch
+    from torchaudio.transforms import MelSpectrogram as _MelSpectrogramBase
+except:
+    raise ImportError(
+        "To use mel spectrogram feature, PyTorch and Torchaudio is required. "
+        "Install it with: pip install torch torchaudio"
+    )
 
 from .torchaudio_future import create_fb_matrix
 

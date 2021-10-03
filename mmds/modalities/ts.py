@@ -11,6 +11,11 @@ logger = logging.getLogger(__name__)
 class TimeSeriesModality(Modality):
     sample_rate: float
 
+    @property
+    def duration(self):
+        assert self.loaded is not None
+        return len(self.loaded) / self.sample_rate
+
     def _slice(self, x, t0, t1):
         start = None if t0 is None else int(t0 * self.sample_rate)
         stop = None if t1 is None else int(t1 * self.sample_rate)
@@ -36,5 +41,6 @@ class TimeSeriesModality(Modality):
     def _pad_fn(x, n):
         return np.pad(x, (0, n))
 
-    def load(self, info={}):
-        return self._slice(self.preloaded, info.get("t0", None), info.get("t1", None))
+    def fetch(self, info={}):
+        assert self.loaded is not None
+        return self._slice(self.loaded, info.get("t0", None), info.get("t1", None))

@@ -23,9 +23,13 @@ def _load_pil(path):
 class RgbsModality(TimeSeriesModality):
     """A rgb sequence modality for video."""
 
-    transform: Callable = lambda x: x
+    transform: Callable
 
-    def load(self, *, info={}):
+    @property
+    def duration(self):
+        return len(self.paths) / self.sample_rate
+
+    def fetch(self, *, info={}):
         paths = self._slice(self.paths, info.get("t0", None), info.get("t1", None))
         frames = list(map(self.transform, map(_load_pil, paths)))
         return frames

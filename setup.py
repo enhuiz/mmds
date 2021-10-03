@@ -40,6 +40,6 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_packages(),
-    install_requires=["attrs"],
+    install_requires=["attrs", "torch"],
     url="https://github.com/enhuiz/mmds",
 )

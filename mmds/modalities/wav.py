@@ -9,7 +9,7 @@ from .ts import TimeSeriesModality
 class WavModality(TimeSeriesModality):
     normalize: bool = True
 
-    def _preload_impl(self):
+    def _load_impl(self):
         """
         Returns:
             wav: (t c)
@@ -29,8 +29,3 @@ class WavModality(TimeSeriesModality):
             wav = wav / np.abs(wav).max()
 
         return wav
-
-    @property
-    def duration(self):
-        assert self.preloaded
-        return len(self.preloaded) / self.sample_rate

@@ -1,16 +1,3 @@
-# MMDS: A general-purpose multimodal dataset wrapper
-
-> This project is under construction, API may change from time to time.
-
-## Installation
-
-```
-pip install git+https://github.com/enhuiz/mmds@main
-```
-
-## Example Usage
-
-```
 from mmds import MultimodalDataset, MultimodalSample
 from mmds.modalities import RgbsModality, WavModality, MelModality, F0Modality
 from mmds.utils.spectrogram import LogMelSpectrogram
@@ -124,4 +111,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
