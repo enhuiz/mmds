@@ -145,10 +145,10 @@ class LogMelSpectrogram(_MelSpectrogramBase):
         if drop_last:
             mel = mel[..., :-1]
 
-        # swap t back
-        mel = mel.transpose(dim, -1)
         # swap mel as the last dim
         mel = mel.transpose(-1, -2)
+        # swap t back
+        mel = mel.transpose(dim, -2)
 
         return mel
 
