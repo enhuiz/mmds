@@ -25,7 +25,7 @@ class TimeSeriesModality(Modality):
 
     def _ensure_length(self, x, n):
         if n > len(x):
-            diff = len(x) - n
+            diff = n - len(x)
 
             logger.warning(
                 f"Modality {self.name} of sample {self.sample} does not have enough time-steps. "
