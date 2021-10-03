@@ -25,15 +25,14 @@ class TimeSeriesModality(Modality):
 
     def _ensure_length(self, x, n):
         if n > len(x):
-            diff = n - len(x)
+            npad = n - len(x)
 
             logger.warning(
-                f'Modality "{self.name}" of sample "{self.sample.id}" does not have enough time-steps. '
-                f"Expect at least {n} but got {len(x)}. "
-                f"{diff} time-steps are padded."
+                f'Modality "{self.name}" of sample "{self.sample.id}" does not have enough time steps. '
+                f"Expect at least {n} but got {len(x)}. {npad} time steps will be padded."
             )
 
-            x = self._pad_fn(x, diff)
+            x = self._pad_fn(x, npad)
 
         return x
 
