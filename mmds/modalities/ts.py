@@ -28,7 +28,7 @@ class TimeSeriesModality(Modality):
             diff = n - len(x)
 
             logger.warning(
-                f"Modality {self.name} of sample {self.sample} does not have enough time-steps. "
+                f'Modality "{self.name}" of sample "{self.sample.id}" does not have enough time-steps. '
                 f"Expect at least {n} but got {len(x)}. "
                 f"{diff} time-steps are padded."
             )
