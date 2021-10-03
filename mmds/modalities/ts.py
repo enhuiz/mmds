@@ -39,7 +39,7 @@ class TimeSeriesModality(Modality):
 
     @staticmethod
     def _pad_fn(x, n):
-        return np.pad(x, (0, n))
+        return np.apply_along_axis(np.pad, 0, x, (0, n))
 
     def _fetch_impl(self, info={}):
         assert self.loaded is not None
