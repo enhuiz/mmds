@@ -1,7 +1,9 @@
+import timeit
 from mmds import MultimodalDataset, MultimodalSample
 from mmds.modalities import RgbsModality, WavModality, MelModality, F0Modality
 from mmds.utils.spectrogram import LogMelSpectrogram
 from pathlib import Path
+from multiprocessing import Manager
 
 
 try:
@@ -66,6 +68,9 @@ class MyMultimodalDataset(MultimodalDataset):
 def main():
     download()
 
+    # optional multiprocessing cache manager
+    manager = Manager()
+
     dataset = MyMultimodalDataset(
         ["BaW_jenozKc"],
         modality_factories=[
@@ -81,12 +86,14 @@ def main():
                         transforms.Normalize(0.5, 1),
                     ],
                 ),
+                cache=manager.dict(),
             ),
             WavModality.create_factory(
                 name="wav",
                 root="data",
                 suffix=".mp3",
                 sample_rate=16_000,
+                cache=manager.dict(),
             ),
             MelModality.create_factory(
                 name="mel",
@@ -94,6 +101,7 @@ def main():
                 suffix=".mel.npz",
                 mel_fn=LogMelSpectrogram(sample_rate=16_000),
                 base_modality_name="wav",
+                cache=manager.dict(),
             ),
             F0Modality.create_factory(
                 name="f0",
@@ -101,12 +109,18 @@ def main():
                 suffix=".f0.npz",
                 mel_fn=LogMelSpectrogram(sample_rate=16_000),
                 base_modality_name="wav",
+                cache=manager.dict(),
             ),
         ],
     )
 
-    sample = dataset[0]
-    print(sample)
+    # first load
+    print(timeit.timeit(lambda: dataset[0], number=1))
+
+    # second load
+    print(timeit.timeit(lambda: dataset[0], number=1))
+
+    print(dataset[0])
 
 
 if __name__ == "__main__":

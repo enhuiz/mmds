@@ -13,18 +13,18 @@ class Modality:
         name: the name of the modality.
         root: the data root of this modality.
         suffix: the suffix of the data, e.g. .mp4 or /*.jpg, yielding path: {root}/{id}.mp4 or paths: {root}/{id}/*.jpg.
-        memory: a dict for caching which may be managed by a proxy process.
+        cache: a dict for caching which may be managed by a proxy process.
     """
 
     sample: MultimodalSample
     name: str = attr.field(converter=str)
     root: Path = attr.field(converter=Path)
     suffix: str = attr.field(converter=str)
-    memory: Optional[dict] = attr.field(kw_only=True, default=None)
+    cache: Optional[dict] = attr.field(kw_only=True, default=None)
 
-    _loaded: Any = attr.field(init=False, default=None, repr=False)
-    _paths: list[Path] = attr.field(init=False, default=[], repr=False)
-    _path: Optional[Path] = attr.field(init=False, default=None, repr=False)
+    _paths: list[Path] = attr.field(init=False, repr=False, default=[])
+    _path: Optional[Path] = attr.field(init=False, repr=False, default=None)
+    _loaded: Any = attr.field(init=False, repr=False, default=None)
 
     def __attrs_post_init__(self):
         if "*" in self.suffix:
@@ -49,13 +49,22 @@ class Modality:
     def loaded(self):
         return self._loaded
 
+    @property
+    def cached(self):
+        if self.cache is not None and self._cache_key in self.cache:
+            return self.cache[self._cache_key]
+
+    def loader(self):
+        pass
+
     def load(self):
-        if self.memory is not None and self._cache_key in self.memory:
-            self._loaded = self.memory[self._cache_key]
-        else:
-            self._loaded = self._load_impl()
-            if self.memory is not None:
-                self.memory[self._cache_key] = self.loaded
+        if self.loaded is None:
+            if (cached := self.cached) is None:
+                self._loaded = self.loader()
+                if self.cache is not None:
+                    self.cache[self._cache_key] = self.loaded
+            else:
+                self._loaded = cached
 
     def fetch(self, info={}):
         """
@@ -64,21 +73,12 @@ class Modality:
         raise NotImplementedError
 
     def load_and_fetch(self, info={}):
-        try:
-            self.load()
-        except Exception as e:
-            raise RuntimeError(f"Load modality {self} failed.") from e
+        self.load()
         return self.fetch(info=info)
 
     def unload(self):
-        del self._loaded
+        self._loaded = None
 
     @property
     def _cache_key(self):
         return (self.sample.id, self.name)
-
-    def _load_impl(self):
-        """
-        Load data into memory (optional).
-        """
-        pass

@@ -11,11 +11,15 @@ dumb_image = Image.new("RGB", (32, 32))
 
 
 def _load_pil(path):
+    if path is None:
+        return dumb_image
+
     try:
         image = Image.open(path)
     except:
         logger.warning(f"Open {path} failed, use an empty picture instead.")
         image = dumb_image
+
     return image
 
 

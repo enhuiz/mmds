@@ -9,7 +9,7 @@ from .ts import TimeSeriesModality
 class WavModality(TimeSeriesModality):
     normalize: bool = True
 
-    def _load_impl(self):
+    def loader(self):
         """
         Returns:
             wav: (t c)

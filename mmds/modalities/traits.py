@@ -22,8 +22,8 @@ class CalculableModalityTrait:
 
     def _save_calculated(self, data):
         assert self.path, f"got {self.path}."
+        path: Path = self.path
 
-        path = self.path
         path.parent.mkdir(exist_ok=True, parents=True)
         np.savez_compressed(path, data, self.checksum)
 
@@ -39,5 +39,6 @@ class CalculableModalityTrait:
 
         return calculated
 
-    def _load_impl(self):
-        return self._load_calculated()
+    @property
+    def loader(self):
+        return self._load_calculated
