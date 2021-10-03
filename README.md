@@ -10,7 +10,7 @@ pip install git+https://github.com/enhuiz/mmds@main
 
 ## Example Usage
 
-```
+```python
 from mmds import MultimodalDataset, MultimodalSample
 from mmds.modalities import RgbsModality, WavModality, MelModality, F0Modality
 from mmds.utils.spectrogram import LogMelSpectrogram
