@@ -16,7 +16,7 @@ class MelModality(CalculableModalityTrait, TimeSeriesModality):
         self.sample_rate = self.mel_fn.rate
 
     def calculate(self):
-        wav = self.base_modality.load_and_fetch()
+        wav = self.base_modality.fetch()
         with torch.no_grad():
             wav = torch.from_numpy(wav)  # (t c)
             mel = self.mel_fn(wav, dim=0).numpy()  # (t c d)

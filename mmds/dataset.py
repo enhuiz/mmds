@@ -18,7 +18,7 @@ class MultimodalDataset:
         return samples
 
     def __getitem__(self, index):
-        return self.samples[index].load()
+        return self.samples[index].fetch()
 
     def __len__(self):
         return len(self.samples)

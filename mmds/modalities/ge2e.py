@@ -41,7 +41,7 @@ class Ge2eModality(CalculableModalityTrait, Modality):
         Returns:
             ge2e: (t cxd)
         """
-        wav = self.base_modality.load_and_fetch()
+        wav = self.base_modality.fetch()
         encoder, process = _load_resemblyzer()
         ge2e = []
         for i in range(wav.shape[1]):

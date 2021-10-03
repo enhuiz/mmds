@@ -16,7 +16,7 @@ class MultimodalSample:
             )
         self.modalities.append(modality)
 
-    def load(self):
+    def fetch(self):
         for modality in self.modalities:
             try:
                 modality.load()

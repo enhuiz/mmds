@@ -41,6 +41,6 @@ class TimeSeriesModality(Modality):
     def _pad_fn(x, n):
         return np.pad(x, (0, n))
 
-    def fetch(self, info={}):
+    def _fetch_impl(self, info={}):
         assert self.loaded is not None
         return self._slice(self.loaded, info.get("t0", None), info.get("t1", None))

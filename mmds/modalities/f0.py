@@ -37,7 +37,7 @@ class F0Modality(CalculableModalityTrait, TimeSeriesModality):
         return str(self.kwargs)
 
     def calculate(self):
-        wav = self.base_modality.load_and_fetch()
+        wav = self.base_modality.fetch()
 
         f0 = []
         for wav_i in wav.transpose():

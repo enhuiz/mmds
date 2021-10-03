@@ -42,5 +42,5 @@ class CalculableModalityTrait:
         return calculated
 
     @property
-    def loader(self):
+    def _load_impl(self):
         return self._load_calculated

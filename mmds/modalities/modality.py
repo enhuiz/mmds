@@ -54,27 +54,18 @@ class Modality:
         if self.cache is not None and self._cache_key in self.cache:
             return self.cache[self._cache_key]
 
-    def loader(self):
-        pass
-
     def load(self):
         if self.loaded is None:
             if (cached := self.cached) is None:
-                self._loaded = self.loader()
+                self._loaded = self._load_impl()
                 if self.cache is not None:
                     self.cache[self._cache_key] = self.loaded
             else:
                 self._loaded = cached
 
     def fetch(self, info={}):
-        """
-        Fetch data given loaded data.
-        """
-        return self.loaded
-
-    def load_and_fetch(self, info={}):
         self.load()
-        return self.fetch(info=info)
+        return self._fetch_impl(info=info)
 
     def unload(self):
         self._loaded = None
@@ -82,3 +73,9 @@ class Modality:
     @property
     def _cache_key(self):
         return (self.sample.id, self.name)
+
+    def _load_impl(self):
+        pass
+
+    def _fetch_impl(self, info={}):
+        return self.loaded
