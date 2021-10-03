@@ -1,6 +1,5 @@
 import attr
 import numpy as np
-from typing import Optional
 
 from ..utils.yin import compute_yin
 from ..utils.spectrogram import LogMelSpectrogram

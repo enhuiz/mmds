@@ -1,6 +1,11 @@
 import attr
-import librosa
 import numpy as np
+from mmds.exceptions import PackageNotFoundError
+
+try:
+    import librosa
+except:
+    raise PackageNotFoundError("librosa", "the wav modality")
 
 from .ts import TimeSeriesModality
 

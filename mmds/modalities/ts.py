@@ -43,4 +43,4 @@ class TimeSeriesModality(Modality):
 
     def _fetch_impl(self, info={}):
         assert self.loaded is not None
-        return self._slice(self.loaded, info.get("t0", None), info.get("t1", None))
+        return self._slice(self.loaded, info.get("t0"), info.get("t1"))

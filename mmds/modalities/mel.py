@@ -1,5 +1,4 @@
 import attr
-from typing import Optional
 
 from ..utils.spectrogram import LogMelSpectrogram, torch
 from .ts import TimeSeriesModality

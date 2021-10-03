@@ -1,7 +1,12 @@
 import attr
 import logging
-from PIL import Image
 from typing import Callable
+from mmds.exceptions import PackageNotFoundError
+
+try:
+    from PIL import Image
+except:
+    raise PackageNotFoundError("pillow", "rgbs modality.")
 
 from .ts import TimeSeriesModality
 
@@ -22,7 +27,7 @@ class RgbsModality(TimeSeriesModality):
         return len(self.paths) / self.sample_rate
 
     def _fetch_impl(self, *, info={}):
-        paths = self._slice(self.paths, info.get("t0", None), info.get("t1", None))
+        paths = self._slice(self.paths, info.get("t0"), info.get("t1"))
         frames = list(map(self.transform, map(self._load_pil, paths)))
         return self.aggragate(frames)
 

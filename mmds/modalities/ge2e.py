@@ -2,6 +2,7 @@ import attr
 import numpy as np
 from functools import cache
 
+from ..exceptions import PackageNotFoundError
 from .modality import Modality
 from .traits import CalculableModalityTrait
 
@@ -11,10 +12,7 @@ def _load_resemblyzer():
     try:
         from resemblyzer import VoiceEncoder, preprocess_wav
     except:
-        raise ImportError(
-            "To use the GE2E feature, resemblyzer is required."
-            "Install it with: pip install Resemblyzer"
-        )
+        raise PackageNotFoundError("Resemblyzer", "the GE2E modality")
 
     try:
         return VoiceEncoder(), preprocess_wav
