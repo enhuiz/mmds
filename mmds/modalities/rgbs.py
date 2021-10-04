@@ -6,7 +6,7 @@ from mmds.exceptions import PackageNotFoundError
 try:
     from PIL import Image
 except:
-    raise PackageNotFoundError("pillow", "rgbs modality.")
+    raise PackageNotFoundError("pillow", by="rgbs modality.")
 
 from .ts import TimeSeriesModality
 

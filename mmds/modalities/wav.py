@@ -5,7 +5,7 @@ from mmds.exceptions import PackageNotFoundError
 try:
     import librosa
 except:
-    raise PackageNotFoundError("librosa", "the wav modality")
+    raise PackageNotFoundError("librosa", by="the wav modality")
 
 from .ts import TimeSeriesModality
 

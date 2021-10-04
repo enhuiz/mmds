@@ -3,7 +3,6 @@ import numpy as np
 
 from ..utils.yin import compute_yin
 from ..utils.spectrogram import LogMelSpectrogram
-
 from .ts import TimeSeriesModality
 from .traits import CalculableModalityTrait
 

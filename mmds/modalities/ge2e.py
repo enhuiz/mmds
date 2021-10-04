@@ -12,7 +12,7 @@ def _load_resemblyzer():
     try:
         from resemblyzer import VoiceEncoder, preprocess_wav
     except:
-        raise PackageNotFoundError("Resemblyzer", "the GE2E modality")
+        raise PackageNotFoundError("Resemblyzer", by="the GE2E modality")
 
     try:
         return VoiceEncoder(), preprocess_wav

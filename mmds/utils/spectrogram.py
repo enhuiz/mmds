@@ -1,14 +1,16 @@
 import numpy as np
 from dataclasses import dataclass
-from mmds.exceptions import PackageNotFoundError
+
+from ..exceptions import PackageNotFoundError
 
 try:
     import torch
     from torchaudio.transforms import MelSpectrogram as _MelSpectrogramBase
 except:
     raise PackageNotFoundError(
-        "torch torchaudio",
-        "the mel-spectrogram dependent features",
+        "torch",
+        "torchaudio",
+        by="the mel-spectrogram dependent features",
     )
 
 from .torchaudio_future import create_fb_matrix

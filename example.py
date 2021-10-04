@@ -1,15 +1,15 @@
 import timeit
-from mmds import MultimodalDataset, MultimodalSample
-from mmds.modalities import (
-    RgbsModality,
-    WavModality,
-    MelModality,
-    F0Modality,
-    Ge2eModality,
-)
-from mmds.utils.spectrogram import LogMelSpectrogram
 from pathlib import Path
 from multiprocessing import Manager
+
+from mmds import MultimodalDataset, MultimodalSample
+from mmds.exceptions import PackageNotFoundError
+from mmds.modalities.rgbs import RgbsModality
+from mmds.modalities.wav import WavModality
+from mmds.modalities.mel import MelModality
+from mmds.modalities.f0 import F0Modality
+from mmds.modalities.ge2e import Ge2eModality
+from mmds.utils.spectrogram import LogMelSpectrogram
 
 
 try:
@@ -17,10 +17,13 @@ try:
     import ffmpeg
     import torch
     from torchvision import transforms
-except:
-    raise ImportError(
-        "This demo requires youtube_dl, ffmpeg-python and torch torchvision, "
-        "install them now: pip install youtube_dl ffmpeg-python torch torchvision"
+except ImportError:
+    raise PackageNotFoundError(
+        "youtube_dl",
+        "ffmpeg-python",
+        "torch",
+        "torchvision",
+        by="example.py",
     )
 
 
