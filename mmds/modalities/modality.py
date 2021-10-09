@@ -23,7 +23,7 @@ class Modality:
     root: Path = attr.field(converter=Path)
     suffix: str = attr.field(converter=str)
     cache: Optional[dict] = attr.field(kw_only=True, default=None)
-    ignore: bool = False
+    ignore: bool = attr.field(kw_only=True, default=False)
 
     _paths: list[Path] = attr.field(init=False, repr=False, default=[])
     _path: Optional[Path] = attr.field(init=False, repr=False, default=None)
