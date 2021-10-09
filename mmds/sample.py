@@ -17,7 +17,9 @@ class MultimodalSample:
         self.modalities.append(modality)
 
     def fetch(self):
-        for modality in self.modalities:
+        modalities = [m for m in self.modalities if not m.ignore]
+
+        for modality in modalities:
             try:
                 modality.load()
             except Exception as e:
@@ -27,19 +29,17 @@ class MultimodalSample:
 
         data = dict(info=info)
 
-        for modality in self.modalities:
+        for modality in modalities:
             try:
                 data[modality.name] = modality.fetch(info=info)
             except Exception as e:
                 raise RuntimeError(f"Fetch {modality} failed.") from e
 
-        data = {
-            modality.name: modality.fetch(info=info) for modality in self.modalities
-        }
+        data = {m.name: m.fetch(info=info) for m in modalities}
 
         data["info"] = info
 
-        for modality in self.modalities:
+        for modality in modalities:
             modality.unload()
 
         return data
