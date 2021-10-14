@@ -152,6 +152,7 @@ def main():
                 sample_rate=16_000,
                 base_modality_name="wav",
                 cache=manager.dict(),
+                fetching=False,
             ),
         ],
     )

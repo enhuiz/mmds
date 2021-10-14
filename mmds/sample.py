@@ -17,7 +17,7 @@ class MultimodalSample:
         self.modalities.append(modality)
 
     def fetch(self):
-        modalities = [m for m in self.modalities if not m.ignore]
+        modalities = [m for m in self.modalities if m.fetching]
 
         for modality in modalities:
             try:

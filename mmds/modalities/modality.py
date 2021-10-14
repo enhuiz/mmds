@@ -15,7 +15,7 @@ class Modality:
         root: the data root of this modality.
         suffix: the suffix of the data, e.g. .mp4 or /*.jpg, yielding path: {root}/{id}.mp4 or paths: {root}/{id}/*.jpg.
         cache: a dict for caching which may be managed by a proxy process.
-        ignore: whether to ignore this modality during sample fetching.
+        fetching: whether to include this modality during sample fetching.
     """
 
     sample: MultimodalSample
@@ -23,7 +23,7 @@ class Modality:
     root: Path = attr.field(converter=Path)
     suffix: str = attr.field(converter=str)
     cache: Optional[dict] = attr.field(kw_only=True, default=None)
-    ignore: bool = attr.field(kw_only=True, default=False)
+    fetching: bool = attr.field(kw_only=True, default=True)
 
     _paths: list[Path] = attr.field(init=False, repr=False, default=[])
     _path: Optional[Path] = attr.field(init=False, repr=False, default=None)
