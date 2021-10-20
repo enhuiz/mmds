@@ -5,15 +5,16 @@ from ..exceptions import PackageNotFoundError
 
 try:
     import torch
+    import torchaudio
     from torchaudio.transforms import MelSpectrogram as _MelSpectrogramBase
+
+    assert torchaudio.__version__ >= "0.9.0"
 except:
     raise PackageNotFoundError(
         "torch",
         "torchaudio",
         by="the mel-spectrogram dependent features",
     )
-
-from .torchaudio_future import create_fb_matrix
 
 
 def lws_hann(n):
@@ -60,9 +61,9 @@ class LogMelSpectrogram(_MelSpectrogramBase):
         win_length = 4 * self.hop_length
         n_fft = 2 ** (win_length - 1).bit_length()
 
-        window_fn = torch.hann_window
+        self.window_fn = torch.hann_window
         if self.legacy:
-            window_fn = self.lws_window_fn
+            self.window_fn = self.lws_window_fn
 
         super().__init__(
             self.sample_rate,
@@ -73,24 +74,11 @@ class LogMelSpectrogram(_MelSpectrogramBase):
             self.f_max,
             n_mels=self.n_mels,
             pad=0,
-            window_fn=window_fn,
+            window_fn=self.window_fn,
             power=1,
             normalized=False,
             norm="slaney",
-            # mel_scale="slaney",
-        )
-
-        self.mel_scale.register_buffer(
-            "fb",
-            create_fb_matrix(
-                self.n_fft // 2 + 1,
-                self.f_min,
-                self.f_max,
-                self.n_mels,
-                self.sample_rate,
-                "slaney",
-                "slaney",
-            ),
+            mel_scale="slaney",
         )
 
     def lws_window_fn(self, win_length):

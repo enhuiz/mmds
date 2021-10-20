@@ -1,3 +1,5 @@
 __pycache__
 data
 mmds/version.py
+build
+*.egg-info
