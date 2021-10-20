@@ -1,69 +1,37 @@
-import numpy as np
 from dataclasses import dataclass
 
 from ..exceptions import PackageNotFoundError
 
 try:
+    import librosa
     import torch
     import torchaudio
-    from torchaudio.transforms import MelSpectrogram as _MelSpectrogramBase
+    import torch.nn.functional as F
+    from torchaudio.transforms import GriffinLim, MelSpectrogram as _MelSpectrogramBase
 
     assert torchaudio.__version__ >= "0.9.0"
 except:
     raise PackageNotFoundError(
         "torch",
         "torchaudio",
+        "librosa",
         by="the mel-spectrogram dependent features",
     )
-
-
-def lws_hann(n):
-    """
-    symmetric hann from lws, which start from 1 instead of 0
-    """
-    return 0.5 * (1 - np.cos(2 * np.pi * (np.arange(1, 2 * n, 2)) / (2 * n)))
-
-
-def synthwin(awin, fshift, swin=None):
-    """
-    synthwin from lws
-    """
-    # returns the normalized synthesis window for perfect reconstruction
-    fsize = len(awin)
-    Q = int(np.ceil(fsize * 1.0 / fshift))
-    if swin is None:
-        swin = awin
-    twin = awin * swin
-    tmp_fsize = Q * fshift
-
-    w = np.hstack([twin, np.zeros((tmp_fsize - fsize,))])
-    w = np.sum(np.reshape(w, (Q, fshift)), axis=0)
-    w = np.tile(w, (1, Q))[0, :fsize]
-
-    if min(w) <= 0:
-        raise ValueError("The normalizer is not strictly positive")
-
-    swin = swin / w
-
-    return swin
 
 
 @dataclass(eq=False)
 class LogMelSpectrogram(_MelSpectrogramBase):
     sample_rate: int = 16000
     n_mels: int = 80
-    f_min: int = 125
+    f_min: int = 55
     f_max: int = 7600
-    hop_length: int = 256
-    legacy: bool = True
+    hop_length: int = 200
+    eps: float = 1e-10
+    griffin_lim_n_iter: int = 60
 
     def __post_init__(self):
         win_length = 4 * self.hop_length
         n_fft = 2 ** (win_length - 1).bit_length()
-
-        self.window_fn = torch.hann_window
-        if self.legacy:
-            self.window_fn = self.lws_window_fn
 
         super().__init__(
             self.sample_rate,
@@ -73,74 +41,80 @@ class LogMelSpectrogram(_MelSpectrogramBase):
             self.f_min,
             self.f_max,
             n_mels=self.n_mels,
-            pad=0,
-            window_fn=self.window_fn,
             power=1,
-            normalized=False,
             norm="slaney",
             mel_scale="slaney",
         )
 
-    def lws_window_fn(self, win_length):
-        awin = torch.from_numpy(lws_hann(win_length)).double().sqrt()
-        awin = (awin * synthwin(awin, self.hop_length)).sqrt()
-        return awin.float()
+        self.register_buffer(
+            "inv_mel_fb",
+            torch.linalg.pinv(self.mel_scale.fb.t()),
+        )
+
+        self.griffin_lim = GriffinLim(
+            n_fft=self.n_fft,
+            n_iter=self.griffin_lim_n_iter,
+            win_length=self.win_length,
+            hop_length=self.hop_length,
+            power=1,
+        )
 
     @property
     def rate(self):
         return self.sample_rate / self.hop_length
 
-    @property
-    def min_level_db(self):
-        if self.legacy:
-            return -100
-        return -200  # eps = 1e-10
-
-    @property
-    def ref_level_db(self):
-        assert self.legacy
-        return 20
-
-    @property
-    def min_level(self):
-        # 10 ^ (db / 20)
-        return np.exp(self.min_level_db / 20 * np.log(10))
-
     def forward(self, wav, dim=-1, drop_last=True):
         """
         Args:
             wav: (... t ...)
-            dim: the dim for t
+            dim: the dim of t
         Returns:
             mel: (... t' ... c)
         """
-        if not isinstance(wav, torch.Tensor):
-            wav = torch.tensor(wav)
+        assert isinstance(wav, torch.Tensor)
 
         # swap t to the last dim
         wav = wav.transpose(dim, -1)
-        mel = super().forward(wav)
-        mel = mel.clamp_min(self.min_level).log10()
 
-        if self.legacy:
-            # the legacy wavenet normalization
-            # https://github.com/r9y9/wavenet_vocoder/blob/42a488b74b901db3fdf49689d9d8503fdc109c11/audio.py
-            mel = 20 * mel - self.ref_level_db
-            mel = ((mel - self.min_level_db) / -self.min_level_db).clamp(0, 1)
-        else:
-            # the new wavenet (espnet), which does not do normalization
-            # https://github.com/r9y9/wavenet_vocoder/blob/c93a556466a3378be8f67cd3a0e9d689915c4fab/audio.py
-            pass
+        mel = super().forward(wav)
+        mel = mel.clamp_min(self.eps).log10()
 
         if drop_last:
             mel = mel[..., :-1]
 
-        # swap mel as the last dim
+        # swap channels as the last dim
         mel = mel.transpose(-1, -2)
+
         # swap t back
         mel = mel.transpose(dim, -2)
 
         return mel
+
+    def inverse(self, mel, dim=-1):
+        """
+        Args:
+            mel: (... t ...)
+            dim: the dim of t
+        """
+        assert isinstance(mel, torch.Tensor)
+
+        # swap t to the last dim
+        mel = mel.transpose(dim, -1)
+
+        mel = torch.pow(10.0, mel)
+        lin = self.inv_mel_fb @ mel
+        wav = self.griffin_lim(lin)
+
+        target_length = int(mel.shape[-1] * self.hop_length)
+        if len(wav) > target_length:
+            wav = wav[:target_length]
+        elif len(wav) < target_length:
+            wav = F.pad(wav, (0, target_length - wav.shape[-1]))
+
+        # swap t back
+        wav = wav.transpose(dim, -1)
+
+        return wav
 
 
 if __name__ == "__main__":
@@ -149,18 +123,26 @@ if __name__ == "__main__":
 
     import sys
     import librosa
+    import matplotlib.pyplot as plt
+    import soundfile
     from pathlib import Path
 
     path = Path(sys.argv[1])
-    print(path)
-    wav = librosa.load(path, 16000)[0]
-    print(wav.shape)
-    mel = mel_fn(wav)
-    print(mel)
-    print(mel.shape)
+    wav = librosa.load(path, mel_fn.sample_rate)[0]
 
-    mel2 = torch.load(f"../wavenet_vocoder/template.pth")
-    mel2 = torch.from_numpy(mel2)
-    print(mel2)
-    print(mel2.shape)
-    print(torch.isclose(mel[2:-1], mel2[:-1], 1e-4).all())
+    mel = mel_fn(torch.tensor(wav))
+    wav2 = mel_fn.inverse(mel)
+    soundfile.write("reconstructed.wav", wav2, mel_fn.sample_rate)
+    mel2 = mel_fn(wav2)
+
+    def display(mel):
+        print(mel)
+        print(mel.mean(), mel.std(), mel.min(), mel.max(), mel.median())
+        print(mel.shape)
+        plt.imshow(mel.numpy(), origin="lower")
+
+    plt.subplot(211)
+    display(mel)
+    plt.subplot(212)
+    display(mel2)
+    plt.savefig("mel.png")

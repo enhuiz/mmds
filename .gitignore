@@ -3,3 +3,5 @@ data
 mmds/version.py
 build
 *.egg-info
+*.wav
+*.png
