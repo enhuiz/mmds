@@ -26,7 +26,7 @@ class TimeSeriesModality(Modality):
             if start is None:
                 stop = int(t1 * self.sample_rate)
             else:
-                stop = start + int((t1 - t0) * self.sample_rate)
+                stop = start + round((t1 - t0) * self.sample_rate)
 
         if stop is not None:
             x = self._ensure_length(x, stop)
