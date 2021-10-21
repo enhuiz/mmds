@@ -17,10 +17,20 @@ class TimeSeriesModality(Modality):
         return len(self.loaded) / self.sample_rate
 
     def _slice(self, x, t0, t1):
-        start = None if t0 is None else int(t0 * self.sample_rate)
-        stop = None if t1 is None else int(t1 * self.sample_rate)
+        start = stop = None
+
+        if t0 is not None:
+            start = int(t0 * self.sample_rate)
+
+        if t1 is not None:
+            if start is None:
+                stop = int(t1 * self.sample_rate)
+            else:
+                stop = start + int((t1 - t0) * self.sample_rate)
+
         if stop is not None:
             x = self._ensure_length(x, stop)
+
         return x[start:stop]
 
     def _ensure_length(self, x, n):
