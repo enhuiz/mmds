@@ -1,5 +1,5 @@
 import attr
-import warnings
+import logging
 from typing import Callable
 from mmds.exceptions import PackageNotFoundError
 
@@ -10,6 +10,8 @@ except:
 
 from .modality import Modality
 
+
+logger = logging.getLogger(__name__)
 
 dumb_image = Image.new("RGB", (32, 32))
 
@@ -31,7 +33,7 @@ class RgbModality(Modality):
         try:
             image = Image.open(path)
         except:
-            warnings.warn(f"Open {path} failed, use an empty picture instead.")
+            logger.warning(f"Open {path} failed, use an empty picture instead.")
             image = dumb_image
 
         return image

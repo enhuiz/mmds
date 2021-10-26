@@ -1,8 +1,10 @@
 import attr
-import warnings
+import logging
 import numpy as np
 
 from .modality import Modality
+
+logger = logging.getLogger(__name__)
 
 
 @attr.define
@@ -35,7 +37,7 @@ class TimeSeriesModality(Modality):
         if n > len(x):
             npad = n - len(x)
 
-            warnings.warn(
+            logger.warning(
                 f'Modality "{self.name}" of sample "{self.sample.id}" does not have enough time steps. '
                 f"Expect at least {n} but got {len(x)}. {npad} time steps will be padded."
             )
