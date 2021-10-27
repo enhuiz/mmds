@@ -8,8 +8,9 @@ try:
     import torchaudio
     import torch.nn.functional as F
     from torchaudio.transforms import GriffinLim, MelSpectrogram as _MelSpectrogramBase
+    from packaging import version
 
-    assert torchaudio.__version__ >= "0.9.0"
+    assert version.parse(torchaudio.__version__) >= version.parse("0.9.0")
 except:
     raise PackageNotFoundError(
         "torch",
