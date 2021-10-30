@@ -22,7 +22,7 @@ class F0Modality(CalculableModalityTrait, TimeSeriesModality):
     @property
     def kwargs(self):
         return {
-            "sr": self.sample_rate,
+            "sr": self.mel_fn.sample_rate,
             "w_len": self.mel_fn.win_length,
             "w_step": self.mel_fn.hop_length,
             "f0_min": self.f0_min,
