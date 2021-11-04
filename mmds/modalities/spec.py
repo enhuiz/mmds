@@ -8,7 +8,7 @@ from .traits import CalculableModalityTrait
 
 
 @attr.define
-class MelModality(CalculableModalityTrait, TimeSeriesModality):
+class SpecModality(CalculableModalityTrait, TimeSeriesModality):
     spec_fn: Union[Spectrogram, MelSpectrogram]
     sample_rate: float = attr.field(init=False)
 
