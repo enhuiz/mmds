@@ -7,7 +7,11 @@ try:
     import torch
     import torchaudio
     import torch.nn.functional as F
-    from torchaudio.transforms import GriffinLim, MelSpectrogram as _MelSpectrogramBase
+    from torchaudio.transforms import (
+        GriffinLim,
+        Spectrogram as _SpectrogramBase,
+        MelSpectrogram as _MelSpectrogramBase,
+    )
     from packaging import version
 
     assert version.parse(torchaudio.__version__) >= version.parse("0.9.0")
@@ -16,12 +20,96 @@ except:
         "torch",
         "torchaudio",
         "librosa",
-        by="the mel-spectrogram dependent features",
+        by="the spectrogram dependent features",
     )
 
 
+def amp_to_db(x, eps=1e-10):
+    return x.clamp_min(eps).log10()
+
+
+def db_to_amp(x):
+    return torch.pow(10.0, x)
+
+
 @dataclass(eq=False)
-class LogMelSpectrogram(_MelSpectrogramBase):
+class Spectrogram(_SpectrogramBase):
+    sample_rate: int = 16000
+    hop_length: int = 200
+    griffin_lim_n_iter: int = 60
+
+    def __post_init__(self):
+        win_length = 4 * self.hop_length
+        n_fft = 2 ** (win_length - 1).bit_length()
+
+        super().__init__(
+            n_fft=n_fft,
+            win_length=win_length,
+            hop_length=self.hop_length,
+            power=1,
+        )
+
+        self.griffin_lim = GriffinLim(
+            n_fft=self.n_fft,
+            n_iter=self.griffin_lim_n_iter,
+            win_length=self.win_length,
+            hop_length=self.hop_length,
+            power=1,
+        )
+
+    @property
+    def channels(self):
+        return self.n_fft // 2 + 1
+
+    @property
+    def rate(self):
+        return self.sample_rate / self.hop_length
+
+    def forward(self, wav, dim=-1, drop_last=True):
+        assert isinstance(wav, torch.Tensor)
+
+        # swap t to the last dim
+        wav = wav.transpose(dim, -1)
+
+        spec = super().forward(wav)
+        spec = amp_to_db(spec)
+
+        if drop_last:
+            spec = spec[..., :-1]
+
+        # swap channels to the last dim and swap t back
+        spec = spec.transpose(-1, -2).transpose(dim, -2)
+
+        return spec
+
+    def inverse(self, spec, dim=-1):
+        """
+        Args:
+            spec: (... t ...)
+            dim: the dim of t
+        """
+        assert isinstance(spec, torch.Tensor)
+
+        # swap t to the last dim
+        spec = spec.transpose(dim, -1)
+        spec = db_to_amp(spec)
+
+        wav = self.griffin_lim(spec)
+
+        target_length = int(spec.shape[-1] * self.hop_length)
+        if len(wav) > target_length:
+            wav = wav[:target_length]
+        elif len(wav) < target_length:
+            wav = F.pad(wav, (0, target_length - wav.shape[-1]))
+
+        # swap t back
+        wav = wav.transpose(dim, -1)
+
+        return wav
+
+
+@dataclass(eq=False)
+class MelSpectrogram(_MelSpectrogramBase):
     sample_rate: int = 16000
     n_mels: int = 80
     f_min: int = 55
@@ -61,6 +149,10 @@ class LogMelSpectrogram(_MelSpectrogramBase):
         )
 
     @property
+    def channels(self):
+        return self.n_mels
+
+    @property
     def rate(self):
         return self.sample_rate / self.hop_length
 
@@ -78,16 +170,13 @@ class LogMelSpectrogram(_MelSpectrogramBase):
         wav = wav.transpose(dim, -1)
 
         mel = super().forward(wav)
-        mel = mel.clamp_min(self.eps).log10()
+        mel = amp_to_db(mel)
 
         if drop_last:
             mel = mel[..., :-1]
 
-        # swap channels as the last dim
-        mel = mel.transpose(-1, -2)
-
-        # swap t back
-        mel = mel.transpose(dim, -2)
+        # swap channels to the last dim and swap t back
+        mel = mel.transpose(-1, -2).transpose(dim, -2)
 
         return mel
 
@@ -102,7 +191,7 @@ class LogMelSpectrogram(_MelSpectrogramBase):
         # swap t to the last dim
         mel = mel.transpose(dim, -1)
 
-        mel = torch.pow(10.0, mel)
+        mel = db_to_amp(mel)
         lin = self.inv_mel_fb @ mel
         wav = self.griffin_lim(lin)
 
@@ -118,10 +207,14 @@ class LogMelSpectrogram(_MelSpectrogramBase):
         return wav
 
 
-if __name__ == "__main__":
-    mel_fn = LogMelSpectrogram()
-    print(mel_fn)
+@dataclass(eq=False)
+class LogMelSpectrogram(MelSpectrogram):
+    def __post_init__(self):
+        super().__post_init__()
+        print("LogMelSpectrogram is deprecated, use MelSpectrogram instead.")
 
+
+if __name__ == "__main__":
     import sys
     import librosa
     import matplotlib.pyplot as plt
@@ -129,21 +222,30 @@ if __name__ == "__main__":
     from pathlib import Path
 
     path = Path(sys.argv[1])
-    wav = librosa.load(path, mel_fn.sample_rate)[0]
 
-    mel = mel_fn(torch.tensor(wav))
-    wav2 = mel_fn.inverse(mel)
-    soundfile.write("reconstructed.wav", wav2, mel_fn.sample_rate)
-    mel2 = mel_fn(wav2)
+    def display(spec):
+        print(spec)
+        print(spec.mean(), spec.std(), spec.min(), spec.max(), spec.median())
+        print(spec.shape)
+        plt.imshow(spec.numpy(), origin="lower")
 
-    def display(mel):
-        print(mel)
-        print(mel.mean(), mel.std(), mel.min(), mel.max(), mel.median())
-        print(mel.shape)
-        plt.imshow(mel.numpy(), origin="lower")
+    def test(name, fn):
+        print(fn)
 
-    plt.subplot(211)
-    display(mel)
-    plt.subplot(212)
-    display(mel2)
-    plt.savefig("mel.png")
+        wav = librosa.load(path, fn.sample_rate)[0]
+        wav = wav[:32000]
+        print(wav.shape)
+
+        spec = fn(torch.tensor(wav))
+        wav2 = fn.inverse(spec)
+        soundfile.write(f"{name}.wav", wav2, fn.sample_rate)
+        spec2 = fn(wav2)
+
+        plt.subplot(211)
+        display(spec)
+        plt.subplot(212)
+        display(spec2)
+        plt.savefig(f"{name}.png")
+
+    test("spec", Spectrogram())
+    test("mel", LogMelSpectrogram())
