@@ -1,16 +1,13 @@
-from dataclasses import dataclass
-
-from ..exceptions import PackageNotFoundError
-
 try:
     import librosa
     import torch
-    import torchaudio
+    import torch.nn as nn
     import torch.nn.functional as F
+    import torchaudio
     from torchaudio.transforms import (
         GriffinLim,
-        Spectrogram as _SpectrogramBase,
-        MelSpectrogram as _MelSpectrogramBase,
+        Spectrogram as SpectrogramTransform,
+        MelSpectrogram as MelSpectrogramTransform,
     )
     from packaging import version
 
@@ -23,56 +20,66 @@ except:
         by="the spectrogram dependent features",
     )
 
-
-def amp_to_db(x, eps=1e-10):
-    return x.clamp_min(eps).log10()
-
-
-def db_to_amp(x):
-    return torch.pow(10.0, x)
+from typing import Optional
+from dataclasses import dataclass, field
+from ..exceptions import PackageNotFoundError
 
 
 @dataclass(eq=False)
-class Spectrogram(_SpectrogramBase):
+class SpectrogramBase(nn.Module):
     sample_rate: int = 16000
     hop_length: int = 200
     griffin_lim_n_iter: int = 60
+    eps: float = 1e-10
+    power: int = 1
+    griffin_lim_momentum: float = 0.99
+    win_length: Optional[int] = None
+    n_fft: Optional[int] = None
+    rate: float = field(init=False)
 
     def __post_init__(self):
-        win_length = 4 * self.hop_length
-        n_fft = 2 ** (win_length - 1).bit_length()
-
-        super().__init__(
-            n_fft=n_fft,
-            win_length=win_length,
-            hop_length=self.hop_length,
-            power=1,
-        )
-
+        super().__init__()
+        self.win_length = self.win_length or 4 * self.hop_length
+        self.n_fft = self.n_fft or 2 ** (self.win_length - 1).bit_length()
+        self.rate = self.sample_rate / self.hop_length
         self.griffin_lim = GriffinLim(
             n_fft=self.n_fft,
             n_iter=self.griffin_lim_n_iter,
             win_length=self.win_length,
             hop_length=self.hop_length,
-            power=1,
+            power=self.power,
+            momentum=self.griffin_lim_momentum,
         )
 
     @property
     def channels(self):
+        assert self.n_fft is not None
         return self.n_fft // 2 + 1
 
-    @property
-    def rate(self):
-        return self.sample_rate / self.hop_length
+    def amp_to_db(self, x):
+        return x.clamp_min(self.eps).log10()
+
+    def db_to_amp(self, x):
+        return torch.pow(10.0, x)
+
+    def amp_to_lin(self, x):
+        return x
 
     def forward(self, wav, dim=-1, drop_last=True):
+        """
+        Args:
+            wav: (... t ...)
+            dim: the dim of t
+        Returns:
+            spec: (... t' ... c)
+        """
         assert isinstance(wav, torch.Tensor)
 
         # swap t to the last dim
         wav = wav.transpose(dim, -1)
 
-        spec = super().forward(wav)
-        spec = amp_to_db(spec)
+        spec = self.transform(wav)
+        spec = self.amp_to_db(spec)
 
         if drop_last:
             spec = spec[..., :-1]
@@ -92,8 +99,9 @@ class Spectrogram(_SpectrogramBase):
 
         # swap t to the last dim
         spec = spec.transpose(dim, -1)
-        spec = db_to_amp(spec)
+        spec = self.db_to_amp(spec)
 
+        spec = self.amp_to_lin(spec)
         wav = self.griffin_lim(spec)
 
         target_length = int(spec.shape[-1] * self.hop_length)
@@ -109,102 +117,53 @@ class Spectrogram(_SpectrogramBase):
 
 
 @dataclass(eq=False)
-class MelSpectrogram(_MelSpectrogramBase):
-    sample_rate: int = 16000
+class Spectrogram(SpectrogramBase):
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.transform = SpectrogramTransform(
+            n_fft=self.n_fft,
+            win_length=self.win_length,
+            hop_length=self.hop_length,
+            power=self.power,
+        )
+
+
+@dataclass(eq=False)
+class MelSpectrogram(Spectrogram):
     n_mels: int = 80
     f_min: int = 55
     f_max: int = 7600
-    hop_length: int = 200
-    eps: float = 1e-10
-    griffin_lim_n_iter: int = 60
+    norm: str = "slaney"
+    mel_scale: str = "slaney"
 
     def __post_init__(self):
-        win_length = 4 * self.hop_length
-        n_fft = 2 ** (win_length - 1).bit_length()
+        super().__post_init__()
 
-        super().__init__(
+        self.transform = MelSpectrogramTransform(
             self.sample_rate,
-            n_fft,
-            win_length,
+            self.n_fft,
+            self.win_length,
             self.hop_length,
             self.f_min,
             self.f_max,
             n_mels=self.n_mels,
-            power=1,
-            norm="slaney",
-            mel_scale="slaney",
+            power=self.power,
+            norm=self.norm,
+            mel_scale=self.mel_scale,
         )
 
-        self.register_buffer(
+        self.transform.register_buffer(
             "inv_mel_fb",
-            torch.linalg.pinv(self.mel_scale.fb.t()),
-        )
-
-        self.griffin_lim = GriffinLim(
-            n_fft=self.n_fft,
-            n_iter=self.griffin_lim_n_iter,
-            win_length=self.win_length,
-            hop_length=self.hop_length,
-            power=1,
+            torch.linalg.pinv(self.transform.mel_scale.fb.t()),
         )
 
     @property
     def channels(self):
         return self.n_mels
 
-    @property
-    def rate(self):
-        return self.sample_rate / self.hop_length
-
-    def forward(self, wav, dim=-1, drop_last=True):
-        """
-        Args:
-            wav: (... t ...)
-            dim: the dim of t
-        Returns:
-            mel: (... t' ... c)
-        """
-        assert isinstance(wav, torch.Tensor)
-
-        # swap t to the last dim
-        wav = wav.transpose(dim, -1)
-
-        mel = super().forward(wav)
-        mel = amp_to_db(mel)
-
-        if drop_last:
-            mel = mel[..., :-1]
-
-        # swap channels to the last dim and swap t back
-        mel = mel.transpose(-1, -2).transpose(dim, -2)
-
-        return mel
-
-    def inverse(self, mel, dim=-1):
-        """
-        Args:
-            mel: (... t ...)
-            dim: the dim of t
-        """
-        assert isinstance(mel, torch.Tensor)
-
-        # swap t to the last dim
-        mel = mel.transpose(dim, -1)
-
-        mel = db_to_amp(mel)
-        lin = self.inv_mel_fb @ mel
-        wav = self.griffin_lim(lin)
-
-        target_length = int(mel.shape[-1] * self.hop_length)
-        if len(wav) > target_length:
-            wav = wav[:target_length]
-        elif len(wav) < target_length:
-            wav = F.pad(wav, (0, target_length - wav.shape[-1]))
-
-        # swap t back
-        wav = wav.transpose(dim, -1)
-
-        return wav
+    def amp_to_lin(self, mel):
+        return self.transform.inv_mel_fb @ mel
 
 
 @dataclass(eq=False)
