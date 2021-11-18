@@ -130,40 +130,50 @@ class Spectrogram(SpectrogramBase):
 
 
 @dataclass(eq=False)
-class MelSpectrogram(Spectrogram):
+class MelSpectrogram(SpectrogramBase):
     n_mels: int = 80
     f_min: int = 55
     f_max: int = 7600
     norm: str = "slaney"
     mel_scale: str = "slaney"
+    mel_scale_inverse_method: str = "pinv"
 
     def __post_init__(self):
         super().__post_init__()
+        assert self.mel_scale_inverse_method in ["pinv", "nnls"]
+        assert self.n_fft is not None
 
         self.transform = MelSpectrogramTransform(
-            self.sample_rate,
-            self.n_fft,
-            self.win_length,
-            self.hop_length,
-            self.f_min,
-            self.f_max,
+            sample_rate=self.sample_rate,
+            n_fft=self.n_fft,
+            win_length=self.win_length,
+            hop_length=self.hop_length,
+            f_min=self.f_min,
+            f_max=self.f_max,
             n_mels=self.n_mels,
             power=self.power,
             norm=self.norm,
             mel_scale=self.mel_scale,
         )
 
-        self.transform.register_buffer(
-            "inv_mel_fb",
-            torch.linalg.pinv(self.transform.mel_scale.fb.t()),
-        )
+        if self.mel_scale_inverse_method == "pinv":
+            self.transform.register_buffer("inv_mel_fb", torch.linalg.pinv(self.mel_fb))
 
     @property
     def channels(self):
         return self.n_mels
 
+    @property
+    def mel_fb(self):
+        return self.transform.mel_scale.fb.t()
+
     def amp_to_lin(self, mel):
-        return self.transform.inv_mel_fb @ mel
+        if self.mel_scale_inverse_method == "pinv":
+            lin = self.transform.inv_mel_fb @ mel
+        elif self.mel_scale_inverse_method == "nnls":
+            lin = librosa.util.nnls(self.mel_fb.numpy(), mel.numpy())
+            lin = torch.from_numpy(lin).to(mel)
+        return lin
 
 
 @dataclass(eq=False)
@@ -207,4 +217,4 @@ if __name__ == "__main__":
         plt.savefig(f"{name}.png")
 
     test("spec", Spectrogram())
-    test("mel", LogMelSpectrogram())
+    test("mel", LogMelSpectrogram(mel_scale_inverse_method="nnls"))
