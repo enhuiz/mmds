@@ -13,6 +13,8 @@ try:
 
     assert version.parse(torchaudio.__version__) >= version.parse("0.9.0")
 except:
+    from ..exceptions import PackageNotFoundError
+
     raise PackageNotFoundError(
         "torch",
         "torchaudio",
