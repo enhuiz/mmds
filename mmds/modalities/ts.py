@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 @attr.define
 class TimeSeriesModality(Modality):
     sample_rate: float
-    pad_mode: str = "reflect"
+    pad_mode: str = attr.field(default="reflect", kw_only=True)
 
     @property
     def duration(self):
