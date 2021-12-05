@@ -1,9 +1,11 @@
 try:
+    import numpy as np
     import librosa
     import torch
     import torch.nn as nn
     import torch.nn.functional as F
     import torchaudio
+    import noisereduce
     from torchaudio.transforms import (
         GriffinLim,
         Spectrogram as SpectrogramTransform,
@@ -19,9 +21,11 @@ except:
         "torch",
         "torchaudio",
         "librosa",
+        "noisereduce",
         by="the spectrogram dependent features",
     )
 
+from functools import partial
 from typing import Optional
 from dataclasses import dataclass, field
 from ..exceptions import PackageNotFoundError
@@ -38,11 +42,13 @@ class SpectrogramBase(nn.Module):
     win_length: Optional[int] = None
     n_fft: Optional[int] = None
     rate: float = field(init=False)
+    noise_reduce_kwargs: Optional[dict] = None
 
     def __post_init__(self):
         super().__init__()
         self.win_length = self.win_length or 4 * self.hop_length
         self.n_fft = self.n_fft or 2 ** (self.win_length - 1).bit_length()
+        assert self.n_fft is not None
         self.rate = self.sample_rate / self.hop_length
         self.griffin_lim = GriffinLim(
             n_fft=self.n_fft,
@@ -64,8 +70,35 @@ class SpectrogramBase(nn.Module):
     def db_to_amp(self, x):
         return torch.pow(10.0, x)
 
-    def amp_to_lin(self, x):
-        return x
+    def may_reduce_noise(self, wav):
+        if self.noise_reduce_kwargs is None:
+            # do nothing
+            return wav
+
+        reduce_noise = partial(
+            noisereduce.reduce_noise,
+            sr=self.sample_rate,
+            **self.noise_reduce_kwargs,
+        )
+
+        device = wav.device
+        shape = wav.shape  # (... t)
+
+        single_dim = wav.dim() == 1
+        if single_dim:
+            wav = wav.unsqueeze(0)
+
+        wav = wav.flatten(0, -2).cpu().numpy()
+
+        wav = [reduce_noise(y=wi) for wi in wav]
+        wav = np.stack(wav).reshape(*shape)
+
+        wav = torch.from_numpy(wav).to(device)
+
+        if single_dim:
+            wav = wav.squeeze(0)
+
+        return wav
 
     def forward(self, wav, dim=-1, drop_last=True):
         """
@@ -79,7 +112,9 @@ class SpectrogramBase(nn.Module):
 
         # swap t to the last dim
         wav = wav.transpose(dim, -1)
+        wav = self.may_reduce_noise(wav)
 
+        self.transform: nn.Module
         spec = self.transform(wav)
         spec = self.amp_to_db(spec)
 
@@ -103,7 +138,6 @@ class SpectrogramBase(nn.Module):
         spec = spec.transpose(dim, -1)
         spec = self.db_to_amp(spec)
 
-        spec = self.amp_to_lin(spec)
         wav = self.griffin_lim(spec)
 
         target_length = int(spec.shape[-1] * self.hop_length)
@@ -122,7 +156,7 @@ class SpectrogramBase(nn.Module):
 class Spectrogram(SpectrogramBase):
     def __post_init__(self):
         super().__post_init__()
-
+        assert self.n_fft is not None
         self.transform = SpectrogramTransform(
             n_fft=self.n_fft,
             win_length=self.win_length,
@@ -169,12 +203,15 @@ class MelSpectrogram(SpectrogramBase):
     def mel_fb(self):
         return self.transform.mel_scale.fb.t()
 
-    def amp_to_lin(self, mel):
+    def db_to_amp(self, mel):
+        mel = super().db_to_amp(mel)
         if self.mel_scale_inverse_method == "pinv":
             lin = self.transform.inv_mel_fb @ mel
         elif self.mel_scale_inverse_method == "nnls":
             lin = librosa.util.nnls(self.mel_fb.numpy(), mel.numpy())
             lin = torch.from_numpy(lin).to(mel)
+        else:
+            raise NotImplementedError(self.mel_scale_inverse_method)
         return lin
 
 
@@ -218,5 +255,21 @@ if __name__ == "__main__":
         display(spec2)
         plt.savefig(f"{name}.png")
 
-    test("spec", Spectrogram())
-    test("mel", LogMelSpectrogram(mel_scale_inverse_method="nnls"))
+    noise_reduce_kwargs = dict(
+        stationary=True,
+        n_std_thresh_stationary=0.2,
+    )
+
+    test(
+        "spec",
+        Spectrogram(
+            noise_reduce_kwargs=noise_reduce_kwargs,
+        ),
+    )
+    test(
+        "mel",
+        LogMelSpectrogram(
+            mel_scale_inverse_method="nnls",
+            noise_reduce_kwargs=noise_reduce_kwargs,
+        ),
+    )
