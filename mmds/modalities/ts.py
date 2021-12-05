@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 @attr.define
 class TimeSeriesModality(Modality):
     sample_rate: float
+    pad_mode: str = "reflect"
 
     @property
     def duration(self):
@@ -42,13 +43,12 @@ class TimeSeriesModality(Modality):
                 f"Expect at least {n} but got {len(x)}. {npad} time steps will be padded."
             )
 
-            x = self._pad_fn(x, npad)
+            x = self._pad(x, npad)
 
         return x
 
-    @staticmethod
-    def _pad_fn(x, n):
-        return np.apply_along_axis(np.pad, 0, x, (0, n))
+    def _pad(self, x, n):
+        return np.apply_along_axis(np.pad, 0, x, (0, n), mode=self.pad_mode)
 
     def _fetch_impl(self, info={}):
         assert self.loaded is not None

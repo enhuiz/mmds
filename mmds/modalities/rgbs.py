@@ -31,8 +31,7 @@ class RgbsModality(TimeSeriesModality):
         frames = list(map(self.transform, map(self._load_pil, paths)))
         return self.aggragate(frames)
 
-    @staticmethod
-    def _pad_fn(x, n):
+    def _pad(self, x, n):
         return x + [None] * n
 
     @staticmethod
