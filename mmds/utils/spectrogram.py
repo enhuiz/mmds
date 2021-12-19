@@ -68,7 +68,7 @@ class SpectrogramBase(nn.Module):
         return x.clamp_min(self.eps).log10()
 
     def db_to_amp(self, x):
-        return torch.pow(10.0, x)
+        return torch.pow(10.0, x).clamp_min(self.eps)
 
     def may_reduce_noise(self, wav):
         if self.noise_reduce_kwargs is None:
@@ -212,6 +212,7 @@ class MelSpectrogram(SpectrogramBase):
             lin = torch.from_numpy(lin).to(mel)
         else:
             raise NotImplementedError(self.mel_scale_inverse_method)
+        lin = lin.clamp_min(self.eps)
         return lin
 
 
