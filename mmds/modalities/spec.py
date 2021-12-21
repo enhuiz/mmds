@@ -20,8 +20,8 @@ class SpecModality(CalculableModalityTrait, TimeSeriesModality):
         wav = self.base_modality.fetch()
         with torch.no_grad():
             wav = torch.from_numpy(wav)  # (t c)
-            spec = self.spec_fn(wav.t(), dim=0)  # (c d t)
-            spec = spec.transpose(2, 0, 1)  # (t c d)
+            spec = self.spec_fn(wav.t())  # (c d t)
+            spec = spec.permute(2, 0, 1)  # (t c d)
             spec = spec.numpy()
         return spec
 
