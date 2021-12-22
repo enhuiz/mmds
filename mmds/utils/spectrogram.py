@@ -26,7 +26,7 @@ except:
     )
 
 from functools import partial
-from typing import Optional
+from typing import Literal, Optional
 from dataclasses import dataclass, field
 
 from ..exceptions import PackageNotFoundError
@@ -132,7 +132,7 @@ class Spectrogram(nn.Module):
 
         return spec
 
-    def inverse(self, spec, griffin_lim=True):
+    def inverse(self, spec, method: Literal["griffin_lim", "istft"] = "griffin_lim"):
         """
         Args:
             spec: (... c t)
@@ -142,21 +142,20 @@ class Spectrogram(nn.Module):
 
         spec = self.from_db(spec)
 
-        if griffin_lim:
+        if method == "griffin_lim":
             wav = self.griffin_lim(spec)
-        else:
+        elif method == "istft":
             assert self.n_fft is not None
             assert isinstance(self.to_spec.window, torch.Tensor)
             wav = torch.istft(
-                torch.complex(
-                    spec,
-                    torch.zeros_like(spec),
-                ),
+                torch.complex(spec, torch.zeros_like(spec)),
                 n_fft=self.n_fft,
                 hop_length=self.hop_length,
                 win_length=self.win_length,
                 window=self.to_spec.window,
             )
+        else:
+            raise ValueError(f"Unknown method: {method}.")
 
         target_length = int(spec.shape[-1] * self.hop_length)
         if len(wav) > target_length:
@@ -251,7 +250,7 @@ if __name__ == "__main__":
         print(wav.shape)
 
         spec = fn(torch.tensor(wav))
-        wav2 = fn.inverse(spec)
+        wav2 = fn.inverse(spec, method="istft")
         soundfile.write(f"{name}.wav", wav2, fn.sample_rate)
         spec2 = fn(wav2)
 
