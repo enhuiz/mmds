@@ -132,7 +132,7 @@ class Spectrogram(nn.Module):
 
         return spec
 
-    def inverse(self, spec):
+    def inverse(self, spec, griffin_lim=True):
         """
         Args:
             spec: (... c t)
@@ -141,13 +141,30 @@ class Spectrogram(nn.Module):
         assert isinstance(spec, torch.Tensor)
 
         spec = self.from_db(spec)
-        wav = self.griffin_lim(spec)
+
+        if griffin_lim:
+            wav = self.griffin_lim(spec)
+        else:
+            assert self.n_fft is not None
+            assert isinstance(self.to_spec.window, torch.Tensor)
+            wav = torch.istft(
+                torch.complex(
+                    spec,
+                    torch.zeros_like(spec),
+                ),
+                n_fft=self.n_fft,
+                hop_length=self.hop_length,
+                win_length=self.win_length,
+                window=self.to_spec.window,
+            )
 
         target_length = int(spec.shape[-1] * self.hop_length)
         if len(wav) > target_length:
             wav = wav[:target_length]
         elif len(wav) < target_length:
             wav = F.pad(wav, (0, target_length - wav.shape[-1]))
+
+        wav = wav / wav.abs().max()
 
         return wav
 
