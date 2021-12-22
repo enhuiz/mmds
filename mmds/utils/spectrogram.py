@@ -1,17 +1,19 @@
 try:
     import numpy as np
     import librosa
+    import torchaudio
+    import noisereduce
     import torch
     import torch.nn as nn
     import torch.nn.functional as F
-    import torchaudio
-    import noisereduce
+    from torch.nn.utils.rnn import pad_sequence
+    from packaging import version
+    from einops import rearrange
     from torchaudio.transforms import (
         GriffinLim,
         MelScale,
         Spectrogram as SpectrogramImpl,
     )
-    from packaging import version
 
     assert version.parse(torchaudio.__version__) >= version.parse("0.9.0")
 except:
@@ -22,6 +24,7 @@ except:
         "torchaudio",
         "librosa",
         "noisereduce",
+        "einops",
         by="the spectrogram dependent features",
     )
 
@@ -277,3 +280,48 @@ if __name__ == "__main__":
             noise_reduce_kwargs=noise_reduce_kwargs,
         ),
     )
+
+
+class SpectrogramConverter(nn.Module):
+    def __init__(self, src_spec_fn: Spectrogram, tgt_spec_fn: Spectrogram):
+        super().__init__()
+        self.src_spec_fn = src_spec_fn
+        self.tgt_spec_fn = tgt_spec_fn
+
+    @property
+    def scale_factor(self):
+        return self.tgt_spec_fn.sample_rate / self.src_spec_fn.sample_rate
+
+    def forward(self, spec, method="griffin_lim"):
+        """
+        Args:
+            spec: [(t c)]
+        Return:
+            converted spec: [(t' c)]
+        """
+
+        length = list(map(len, spec))
+        spec = pad_sequence(spec)  # (t b c)
+        spec = rearrange(spec, "t b c -> b c t")
+
+        shape = list(spec.shape)
+        spec = spec.view(-1, *shape[-2:])
+
+        wav = self.src_spec_fn.inverse(spec, method=method)
+        wav = F.interpolate(
+            wav.unsqueeze(1),
+            scale_factor=self.scale_factor,
+            mode="linear",
+            align_corners=True,
+            recompute_scale_factor=False,
+        )
+        wav = wav.squeeze(1)
+        spec = self.tgt_spec_fn(wav)
+
+        shape[-2:] = spec.shape[-2:]
+        spec = spec.view(*shape)
+
+        spec = rearrange(spec, "b c t -> b t c")
+        spec = [s[:l] for s, l in zip(spec, length)]
+
+        return spec
