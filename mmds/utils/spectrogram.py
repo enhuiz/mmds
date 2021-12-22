@@ -38,12 +38,14 @@ class Spectrogram(nn.Module):
     hop_length: int = 200
     eps: float = 1e-10
     power: int = 1
-    griffin_lim_n_iter: int = 60
-    griffin_lim_momentum: float = 0.99
     win_length: Optional[int] = None
     n_fft: Optional[int] = None
-    rate: float = field(init=False)
+    griffin_lim_kwargs: dict = field(default_factory=dict)
     noise_reduce_kwargs: Optional[dict] = None
+
+    @property
+    def rate(self):
+        return self.sample_rate / self.hop_length
 
     def __post_init__(self):
         super().__init__()
@@ -51,8 +53,6 @@ class Spectrogram(nn.Module):
         self.n_fft = self.n_fft or 2 ** (self.win_length - 1).bit_length()
 
         assert self.n_fft is not None
-
-        self.rate = self.sample_rate / self.hop_length
 
         self.to_spec = SpectrogramImpl(
             n_fft=self.n_fft,
@@ -63,11 +63,10 @@ class Spectrogram(nn.Module):
 
         self.griffin_lim = GriffinLim(
             n_fft=self.n_fft,
-            n_iter=self.griffin_lim_n_iter,
             win_length=self.win_length,
             hop_length=self.hop_length,
             power=self.power,
-            momentum=self.griffin_lim_momentum,
+            **self.griffin_lim_kwargs,
         )
 
     @property
