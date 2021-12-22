@@ -195,7 +195,8 @@ class MelSpectrogram(Spectrogram):
         if self.mel_scale_inverse_method == "pinv":
             lin = self.inv_mel_fb @ mel
         elif self.mel_scale_inverse_method == "nnls":
-            lin = librosa.util.nnls(self.mel_fb.numpy(), mel.numpy())
+            mel_fb = self.mel_fb.cpu().numpy()
+            lin = np.stack([librosa.util.nnls(mel_fb, m) for m in mel.cpu().numpy()])
             lin = torch.from_numpy(lin).to(mel)
         else:
             raise NotImplementedError(self.mel_scale_inverse_method)
