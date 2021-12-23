@@ -69,7 +69,14 @@ def getPitch(cmdf, tau_min, tau_max, harmo_th=0.1):
 
 
 def compute_yin(
-    sig, sr, w_len=512, w_step=256, f0_min=100, f0_max=500, harmo_thresh=0.1
+    sig,
+    sr,
+    w_len=512,
+    w_step=256,
+    f0_min=100,
+    f0_max=500,
+    harmo_thresh=0.1,
+    eps=1e-7,
 ):
     """
 
@@ -107,7 +114,7 @@ def compute_yin(
 
     for i, frame in enumerate(frames):
         # Compute YIN
-        df = differenceFunction(frame, w_len, tau_max)
+        df = differenceFunction(frame, w_len, tau_max) + eps
         cmdf = cumulativeMeanNormalizedDifferenceFunction(df, tau_max)
         p = getPitch(cmdf, tau_min, tau_max, harmo_thresh)
 

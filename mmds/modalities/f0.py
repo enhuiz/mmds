@@ -1,8 +1,7 @@
 import attr
 import numpy as np
-from typing import Union
 
-from ..utils.spectrogram import Spectrogram, MelSpectrogram
+from ..utils.spectrogram import Spectrogram
 from ..utils.yin import compute_yin
 from .ts import TimeSeriesModality
 from .traits import CalculableModalityTrait
@@ -10,7 +9,7 @@ from .traits import CalculableModalityTrait
 
 @attr.define
 class F0Modality(CalculableModalityTrait, TimeSeriesModality):
-    spec_fn: Union[Spectrogram, MelSpectrogram]
+    spec_fn: Spectrogram
     f0_min: float = 80
     f0_max: float = 880
     harmo_thresh: float = 0.25
@@ -36,6 +35,7 @@ class F0Modality(CalculableModalityTrait, TimeSeriesModality):
         return str(self.kwargs)
 
     def calculate(self):
+        assert self.spec_fn.win_length is not None
         wav = self.base_modality.fetch()
 
         f0 = []
