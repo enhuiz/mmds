@@ -236,8 +236,12 @@ class SpectrogramConverter(nn.Module):
         self.tgt_spec_fn = tgt_spec_fn
 
     @property
-    def scale_factor(self):
+    def wav_scale_factor(self):
         return self.tgt_spec_fn.sample_rate / self.src_spec_fn.sample_rate
+
+    @property
+    def spec_scale_factor(self):
+        return self.tgt_spec_fn.rate / self.src_spec_fn.rate
 
     def forward(self, spec, method="griffin_lim"):
         """
@@ -259,7 +263,7 @@ class SpectrogramConverter(nn.Module):
         wav = self.src_spec_fn.inverse(spec, method=method)
         wav = F.interpolate(
             wav.unsqueeze(1),
-            scale_factor=self.scale_factor,
+            scale_factor=self.wav_scale_factor,
             mode="linear",
             align_corners=True,
             recompute_scale_factor=False,
@@ -271,7 +275,7 @@ class SpectrogramConverter(nn.Module):
         spec = spec.view(*shape)
 
         spec = rearrange(spec, "b c t -> b t c")
-        spec = [s[:l] for s, l in zip(spec, length)]
+        spec = [s[: int(l * self.spec_scale_factor)] for s, l in zip(spec, length)]
 
         return spec
 
