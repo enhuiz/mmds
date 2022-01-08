@@ -53,9 +53,9 @@ class WavModality(TimeSeriesModality):
 
         wav = wav.astype(np.float32)
 
+        wav = self._may_reduce_noise(wav)
+
         if self.normalize:
             wav = wav / np.max(np.abs(wav), axis=0, keepdims=True)
-
-        wav = self._may_reduce_noise(wav)
 
         return wav
